@@ -10,7 +10,7 @@
 
 ## The problem and the solution
 
-Deciding whether a group word $g_1 g_2 \cdots g_L$ lands in a subgroup normally costs $L$ small matrix products per query, and angle identities such as $R(\pi/4)R(\pi/4) = R(\pi/2)$ are checked with floating-point tolerances that drift as compositions pile up. Elliptic-curve invariants ($\#E(\mathbb{F}_{q^n})$, the zeta function) have the opposite problem: they are exact integers that overflow silently in naive code.
+Deciding whether a group word $g_1 g_2 \cdots g_L$ lands in a subgroup normally costs $L$ small matrix products per query, and angle identities such as $R(\pi/4)R(\pi/4) = R(\pi/2)$ are checked with floating-point tolerances that drift as compositions pile up. Elliptic-curve invariants ($\\#E(\mathbb{F}_{q^n})$, the zeta function) have the opposite problem: they are exact integers that overflow silently in naive code.
 
 SimmyNet moves all the algebra into the compile phase:
 
@@ -148,4 +148,4 @@ If you use SimmyNet in academic work, please cite it using [`CITATION.cff`](CITA
 
 ## License
 
-MIT, © 2026 Mohamed Ehab. See [LICENSE](LICENSE).
+MIT, © 2026 MohamedEh/-/b. See [LICENSE](LICENSE).
