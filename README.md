@@ -1,10 +1,13 @@
 # SimmyNet (`simmynet`) v2.2.0
 
+[![Documentation](https://img.shields.io/badge/docs-simmynet--compiler-2ea44f?style=for-the-badge&logo=readthedocs&logoColor=white)](https://mohamedeh-ab.github.io/simmynet-dsl-compiler/)
+
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://en.cppreference.com/w/cpp/17)
 [![CMake 3.18+](https://img.shields.io/badge/CMake-3.18%2B-brightgreen.svg)](https://cmake.org/)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-orange.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![DOI](https://zenodo.org/badge/1453389569.svg)](https://doi.org/10.5281/zenodo.24123292)
+
 
 **A compiler for tiny, exact, group-theoretic computations.** SimmyNet compiles symbolic group-theoretic boolean classifiers (words over $D_4$, the Klein 4-group, $SO(2)$ phasors, ...) and exact finite-field zeta checks (Frobenius / Lefschetz / Hasse–Weil) into constant-time, allocation-free kernels. An optional [Lean 4 bridge](bridges/lean4/README.md) connects it to the `mathlib` proof assistant in both directions.
 
