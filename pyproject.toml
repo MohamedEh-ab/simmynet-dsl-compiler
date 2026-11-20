@@ -1,0 +1,88 @@
+[build-system]
+# pybind11 and cmake come from the build environment, so `pip install .` needs no system CMake.
+# setuptools>=77 is required for the SPDX `license` string (the old `license = {file = ...}` table and
+# License:: classifiers were removed from setuptools on 2026-02-18).
+requires = [
+    "setuptools>=77",
+    "wheel",
+    "pybind11>=2.13.6",
+    "cmake>=3.18",
+    "ninja; platform_system != 'Windows'",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "simmynet"                 
+version = "2.2.0"                 
+description = "SimmyNet: a symbolic DSL compiler for group-theoretic classifiers with an exact finite-field (Lefschetz / zeta / Weil) engine"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["compiler", "dsl", "group theory", "constant folding", "finite fields", "elliptic curves", "pybind11"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Software Development :: Compilers",
+]
+
+[project.urls]
+Citation = "https://doi.org/10.5281/zenodo.24123292"
+Homepage = "https://github.com/mohamedeh-ab/simmynet-dsl-compiler"      
+Issues   = "https://github.com/mohamedeh-ab/simmynet-dsl-compiler/issues"
+
+[tool.setuptools]
+package-dir = { "" = "python" }
+packages = ["simmynet"]
+zip-safe = false
+
+# ----------------------------------------------------------------------------------------------------
+# Wheels for PyPI: built, repaired and tested by .github/workflows/wheels.yml (cibuildwheel).
+# Local dry run:  pipx run cibuildwheel --output-dir wheelhouse
+# ----------------------------------------------------------------------------------------------------
+[tool.cibuildwheel]
+build = "cp39-* cp310-* cp311-* cp312-* cp313-* cp314-*"
+skip = "*-musllinux_i686 *-win32 *_i686"
+build-verbosity = 1
+# Portable wheels: never -march=native / AVX2 (an "Illegal instruction" crash on older CPUs otherwise).
+environment = { SIMMYNET_NATIVE_ARCH = "0", SIMMYNET_STATIC_RUNTIME = "1" }
+# Each test runs in a clean environment against the INSTALLED wheel (cwd is not the source tree):
+# import smoke test, both Python suites, then the "no external runtime libraries" audit.
+test-command = "python {project}/tests/python/test_bindings.py && python {project}/tests/python/test_wrapper.py && python {project}/scripts/check_extension_deps.py"
+
+[tool.cibuildwheel.linux]
+manylinux-x86_64-image = "manylinux_2_28"
+manylinux-aarch64-image = "manylinux_2_28"
+musllinux-x86_64-image = "musllinux_1_2"
+musllinux-aarch64-image = "musllinux_1_2"
+# auditwheel repair (the default) fails the build if the extension needs a library outside the manylinux policy.
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]    # both built on one Apple-Silicon runner; x86_64 is tested under Rosetta
+
+[[tool.cibuildwheel.overrides]]
+# C++17 <optional>/<variant> need macOS 10.14+, and 10.15 keeps room for <filesystem>/<charconv>.
+select = "*-macosx_x86_64"
+environment = { SIMMYNET_NATIVE_ARCH = "0", SIMMYNET_STATIC_RUNTIME = "1", MACOSX_DEPLOYMENT_TARGET = "10.15" }
+
+[tool.cibuildwheel.windows]
+# The extension is linked with /MT and imports only system DLLs, so there is nothing to bundle:
+# disable the default repair step so no DLL is ever copied into the wheel behind our back.
+repair-wheel-command = ""
+
+[[tool.cibuildwheel.overrides]]
+select = "*-win*"
+test-requires = "pefile"       # used by scripts/check_extension_deps.py to read the PE import table

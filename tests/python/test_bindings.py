@@ -1,40 +1,41 @@
-"""Tests for the symnet_native Python extension (pybind11).
+"""Tests for the simmynet Python extension (pybind11).
 
 Run through CTest (which sets PYTHONPATH to the build artifact directory) or directly:
 
-    python3 tests/python/test_bindings.py [path/to/dir/containing/symnet_native.so]
+    python3 tests/python/test_bindings.py [path/to/dir/containing/simmynet.so]
 
-If the module is not importable, the script also searches common build directories next to the
-repository root (build/, build/python, build/*/python).
+If the package is not importable, the script also searches common build directories next to the
+repository root (build/python, build/*/python): the directory that contains the `simmynet` package.
 """
 import glob
 import math
 import os
+import re
 import sys
 
 
 def _import_module():
     try:
-        import symnet_native  # noqa: F401
-        return symnet_native
+        import simmynet  # noqa: F401
+        return simmynet
     except ImportError:
         pass
     root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     candidates = []
     if len(sys.argv) > 1:
         candidates.append(sys.argv[1])
-    candidates += [os.environ.get("SYMNET_MODULE_DIR", "")]
-    for pattern in ("build", "build/python", "build/*", "build/*/python", "build/lib*"):
+    candidates += [os.environ.get("SIMMYNET_MODULE_DIR", "")]
+    for pattern in ("build/python", "build", "build/*/python", "build/lib*", "python"):
         candidates += glob.glob(os.path.join(root, pattern))
     for d in candidates:
-        if d and glob.glob(os.path.join(d, "symnet_native*")):
+        if d and os.path.isdir(os.path.join(d, "simmynet")):
             sys.path.insert(0, d)
             try:
-                import symnet_native  # noqa: F401
-                return symnet_native
+                import simmynet  # noqa: F401
+                return simmynet
             except ImportError:
                 sys.path.pop(0)
-    raise SystemExit("cannot import symnet_native: build the module and set PYTHONPATH "
+    raise SystemExit("cannot import simmynet: build the module and set PYTHONPATH "
                      "or pass the directory containing it as the first argument")
 
 
@@ -114,11 +115,11 @@ check(raises(ValueError, lambda: cw.decide([1.0], 0.0)), "CompiledWord.decide re
 
 
 # =============================================================================================
-# DSL interpreter / compiler  (symnet_native.dsl)
+# DSL interpreter / compiler  (simmynet.dsl)
 # =============================================================================================
-from symnet_native import dsl                      # noqa: E402
-import symnet_native.finite_field                  # noqa: E402,F401  (sys.modules registration)
-from symnet_native import finite_field as ff       # noqa: E402
+from simmynet import dsl                      # noqa: E402
+import simmynet.finite_field                  # noqa: E402,F401  (sys.modules registration)
+from simmynet import finite_field as ff       # noqa: E402
 
 D4 = """
 group D4 {
@@ -159,13 +160,13 @@ check(res.passed == 9 and res.failed == 0 and res.x_failed == 0 and res.ok and r
 check("[runtime]" in interp.run(D4, transcript=True).transcript, "Interpreter.run(transcript=True) captures the transcript")
 check(interp.run(XOR).passed == 6, "Interpreter.run: XOR program passes 6/6")
 
-check(issubclass(sn.LexError, sn.SymNetError) and issubclass(sn.ParseError, sn.SymNetError)
-      and issubclass(sn.CompileError, sn.SymNetError) and issubclass(sn.SymNetRuntimeError, sn.SymNetError),
-      "exception hierarchy: LexError/ParseError/CompileError/SymNetRuntimeError < SymNetError")
+check(issubclass(sn.LexError, sn.SimmyNetError) and issubclass(sn.ParseError, sn.SimmyNetError)
+      and issubclass(sn.CompileError, sn.SimmyNetError) and issubclass(sn.SimmyNetRuntimeError, sn.SimmyNetError),
+      "exception hierarchy: LexError/ParseError/CompileError/SimmyNetRuntimeError < SimmyNetError")
 check(raises(sn.LexError, lambda: interp.run("group G { @ }")), "LexError on a bad character")
 check(raises(sn.ParseError, lambda: interp.run("group G {")), "ParseError on an unterminated group")
 check(raises(sn.CompileError, lambda: interp.run("group G { classify Nope on (0, 0) }")), "CompileError on an unknown classifier")
-check(raises(sn.SymNetError, lambda: interp.compile("group G { classify Nope on (0, 0) }")), "errors are catchable as SymNetError")
+check(raises(sn.SimmyNetError, lambda: interp.compile("group G { classify Nope on (0, 0) }")), "errors are catchable as SimmyNetError")
 
 # --- compile + inspect the kernel-synthesis result ---------------------------------------------
 prog = interp.compile(XOR)
@@ -198,16 +199,18 @@ check(cl.decide() is True and sn.gemm_count() == 1 and cl.expected is True, "cla
 fold, refr = cl.evaluate(), cl.evaluate(reference=True)
 check(fold.decision == refr.decision is True and abs(fold.score - refr.score) < 1e-12 and fold.soft_score > 0.5,
       "folded result == Kronecker-expanded reference")
-check(raises(sn.SymNetRuntimeError, lambda: ev.decide()), "Job.decide() on an eval job raises SymNetRuntimeError")
+check(raises(sn.SimmyNetRuntimeError, lambda: ev.decide()), "Job.decide() on an eval job raises SimmyNetRuntimeError")
 
 chk = next(t for t in dsl.Interpreter().compile(SO2).groups[0].tasks if t.kind == "check")
 a, b = chk.jobs[0].evaluate().final_vector, chk.jobs[1].evaluate().final_vector
 check(max(abs(x - y) for x, y in zip(a, b)) < 1e-15, "check R(pi/4)*R(pi/4) == R(pi/2) holds to < 1e-15")
+check(chk.exact is True and chk.lhs_angle == "0.5*pi" and chk.rhs_angle == "0.5*pi",
+      "the same check is PROVED symbolically: angle sums 0.5*pi == 0.5*pi (exact, no tolerance)")
 
 # =============================================================================================
-# Exact finite-field passes  (symnet_native.finite_field)
+# Exact finite-field passes  (simmynet.finite_field)
 # =============================================================================================
-check(ff is sys.modules["symnet_native.finite_field"], "finite_field importable as a submodule")
+check(ff is sys.modules["simmynet.finite_field"], "finite_field importable as a submodule")
 
 e = ff.EllipticCurve(2, 3, 97)
 check(e.valid() and (e.a, e.b, e.q) == (2, 3, 97) and e.trace is None and ff.lift(e) is None,
@@ -243,6 +246,65 @@ check(e.resolve(lambda c: -2).trace == -2 and ff.lift(e.resolve(lambda c: -2)) i
 check(e.resolve(lambda c: None).trace is None and e.resolve(ff.schoof_trace_stub).trace is None,
       "resolver returning None / schoof_trace_stub leaves the trace unresolved")
 
+# --- trace handling: Hasse-Weil validation + exact O(p) Legendre point counting (NOT Schoof) ---------
+check(ff.MAX_LEGENDRE_MODULUS == 10 ** 6, "MAX_LEGENDRE_MODULUS is 10**6")
+check(e.count_points() == 100 and e.compute_trace() == -2, "count_points / compute_trace: y^2 = x^3 + 2x + 3 over F_97 has 100 points, a_q = -2")
+check(e.with_computed_trace().trace == -2 and ff.lift(e.with_computed_trace()) is not None,
+      "with_computed_trace attaches the computed trace, which then lifts")
+check(e.resolve(ff.legendre_trace_resolver).trace == -2 and ff.legendre_trace_resolver(e) == -2,
+      "legendre_trace_resolver plugs into resolve()")
+check(ff.EllipticCurve(1, 0, 999983).count_points() == 999984 and ff.EllipticCurve(1, 0, 999983).compute_trace() == 0,
+      "supersingular y^2 = x^3 + x over F_999983 (p = 3 mod 4): #E = p + 1, trace 0")
+# independent oracle: naive tally of squares, over every curve of a few primes
+def _brute_count(a, b, p):
+    sq = [0] * p
+    for y in range(p):
+        sq[y * y % p] += 1
+    return 1 + sum(sq[(x ** 3 + a * x + b) % p] for x in range(p))
+_n_checked = 0
+for _p in (5, 7, 11, 13, 17, 19, 23, 97):
+    for _a in range(_p):
+        for _b in range(_p):
+            _c = ff.EllipticCurve(_a, _b, _p)
+            if _c.valid():
+                _n_checked += 1
+                if _c.count_points() != _brute_count(_a, _b, _p) or _c.compute_trace() != _p + 1 - _c.count_points():
+                    raise AssertionError(f"count_points mismatch at ({_a}, {_b}, {_p})")
+check(_n_checked > 1000, f"count_points == brute-force count on all {_n_checked} nonsingular curves (p in 5..97)")
+check(raises(ValueError, lambda: ff.EllipticCurve(1, 1, 91).count_points()), "composite q: count_points raises ValueError")
+check(raises(ValueError, lambda: ff.EllipticCurve(1, 1, 1000003).count_points()), "q > 10**6: count_points raises ValueError")
+check(raises(ValueError, lambda: ff.EllipticCurve(0, 0, 1009).compute_trace()), "singular curve: compute_trace raises ValueError")
+check(raises(ValueError, lambda: ff.EllipticCurve(1, 1, 1000003).with_computed_trace()), "outside the domain: with_computed_trace raises ValueError")
+check(ff.legendre_trace_resolver(ff.EllipticCurve(1, 1, 1000003)) is None, "legendre_trace_resolver declines (None) outside its domain")
+check(ff.EllipticCurve(1, 1, 1000003).resolve(ff.legendre_trace_resolver).trace is None, "declined resolver leaves the trace unresolved")
+
+# Hasse-Weil: t^2 <= 4q, exact
+check(all(ff.hasse_bound_holds(t, 97) == (t * t <= 4 * 97) for t in range(-100, 101)), "hasse_bound_holds(t, 97) exact for |t| <= 100 (accepts |t| <= 19)")
+check(ff.hasse_bound_holds(4, 4) and not ff.hasse_bound_holds(5, 4) and not ff.hasse_bound_holds(0, 0) and not ff.hasse_bound_holds(0, -3),
+      "hasse_bound_holds: boundary t^2 == 4q accepted; q <= 0 rejected")
+check(ff.hasse_bound_holds(2 * 2147483647, bigq) and not ff.hasse_bound_holds(2 * 2147483647 + 100, bigq) and not ff.hasse_bound_holds(-2 ** 63, bigq),
+      "hasse_bound_holds near q = 2^62 (128-bit compare, no overflow, INT64_MIN safe)")
+check(e.with_trace(19).trace == 19 and e.with_trace(-19).trace == -19, "with_trace accepts |t| <= 19 for q = 97")
+check(raises(ValueError, lambda: e.with_trace(20)) and raises(ValueError, lambda: e.with_trace(-20)),
+      "with_trace rejects |t| = 20 > 2*sqrt(97) with ValueError")
+check(raises(ValueError, lambda: e.with_trace(10 ** 6)) and raises(ValueError, lambda: e.with_trace(-2 ** 63)),
+      "with_trace rejects absurd traces (including -2**63)")
+check(raises(ValueError, lambda: e.resolve(lambda c: 1000)), "resolve() rejects a resolver result that violates Hasse-Weil")
+check(raises(ValueError, lambda: ff.EllipticCurve(2, 3, 97).with_trace(100)) and ff.EllipticCurve(2, 3, 97).trace is None,
+      "a rejected with_trace leaves the original curve untouched")
+
+# version consistency: C++ macro (via _core) == pyproject.toml == CMakeLists.txt, when run from a source checkout
+check(sn.__version__ == "2.2.0", "simmynet.__version__ == 2.2.0")
+_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+for _fname, _pat in (("pyproject.toml", r'^version\s*=\s*"([^"]+)"'),
+                     ("CMakeLists.txt", r"project\(\s*simmynet\s+VERSION\s+([0-9.]+)"),
+                     ("CITATION.cff", r'^version:\s*"?([0-9.]+)"?')):
+    _path = os.path.join(_root, _fname)
+    if os.path.isfile(_path):
+        with open(_path, encoding="utf-8") as _fh:
+            _m = re.search(_pat, _fh.read(), re.M | re.I)
+        check(_m is not None and _m.group(1) == sn.__version__, f"{_fname} version matches simmynet.__version__")
+
 # --- Mat2 arithmetic, overflow, bridge ------------------------------------------------------------
 check((F * F).to_list() == [-97, 194, -2, -93] and (F @ F) == F * F and ff.power(F, 2) == F * F, "Mat2 product / power")
 check(F.adjugate().to_list() == [-2, 97, -1, 0] and F.transpose().to_list() == [0, 1, -97, -2], "adjugate / transpose")
@@ -262,4 +324,4 @@ check(ff.Mat2.from_engine(sn.Matrix2x2.from_list([0.5, 0, 0, 1])) is None, "from
 check(ff.lift_to_engine(e) is None and ff.lift_to_engine(e.with_trace(-2)).to_list() == [0.0, -97.0, 1.0, -2.0],
       "lift_to_engine")
 
-print("all symnet_native tests passed")
+print("all simmynet tests passed")

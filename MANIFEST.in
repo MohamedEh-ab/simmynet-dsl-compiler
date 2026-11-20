@@ -1,0 +1,11 @@
+# Everything CMake needs to build the extension from the sdist, plus docs, tests and audit scripts.
+include LICENSE README.md CITATION.cff CMakeLists.txt pyproject.toml setup.py
+graft include
+graft src
+graft python
+graft tests
+graft scripts
+graft single_header
+prune build
+prune wheelhouse
+global-exclude *.py[cod] __pycache__ *.so *.pyd *.o *.obj *.dylib *.dll

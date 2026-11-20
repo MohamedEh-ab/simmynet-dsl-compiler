@@ -1,4 +1,4 @@
-// test_engine.cpp - C++ unit tests and benchmark for the SymNet engine (target: unit_tests).
+// test_engine.cpp - C++ unit tests and benchmark for the SimmyNet engine (target: unit_tests).
 //
 // Asserts: XOR / Klein-4 automated lift synthesis, D4 constant folding (one matrix pass),
 // SO(2) phasor composition to double precision, angular sector decisions over dense sweeps,
@@ -9,8 +9,8 @@
 //   unit_tests --quick     fewer sweep angles / benchmark iterations (used by ctest)
 //
 // Exit status: 0 when every check passes.
-#include <symnet/Examples.hpp>
-#include <symnet/Interpreter.hpp>
+#include <simmynet/Examples.hpp>
+#include <simmynet/Interpreter.hpp>
 
 #include <chrono>
 #include <cstdint>
@@ -18,8 +18,8 @@
 #include <cstring>
 #include <iostream>
 
-using namespace symnet;
-using namespace symnet::examples;
+using namespace simmynet;
+using namespace simmynet::examples;
 
 // =====================================================================================
 // Generated DSL programs
@@ -102,8 +102,8 @@ const VerifyJob* findVerify(const std::vector<CompiledGroup>& groups, const std:
 }
 
 // Fraction of jobs of a VerifyJob classified as expected by the folded runtime.
-double separationRate(const SymNetRuntime& rt, const VerifyJob& vj) {
-    SymNetRuntime::Scratch s;
+double separationRate(const SimmyNetRuntime& rt, const VerifyJob& vj) {
+    SimmyNetRuntime::Scratch s;
     int good = 0;
     for (const Job& j : vj.jobs) good += (rt.decideFast(j.folded, j.inputVec.data(), s) == *j.expected) ? 1 : 0;
     return static_cast<double>(good) / static_cast<double>(vj.jobs.size());
@@ -132,8 +132,8 @@ int main(int argc, char** argv) {
         else { std::cerr << "usage: " << argv[0] << " [--verbose] [--quick]\n"; return 2; }
     }
 
-    SymNetInterpreter interp(10.0, verbose ? &std::cout : nullptr);
-    const SymNetRuntime& rt = interp.runtime();
+    SimmyNetInterpreter interp(10.0, verbose ? &std::cout : nullptr);
+    const SimmyNetRuntime& rt = interp.runtime();
     Suite suite;
     Report dsl;
     int exitCode = 0;
@@ -210,7 +210,7 @@ int main(int argc, char** argv) {
                         sfmt("gemm passes = %zu", gemmCounter()));
             suite.check(maxAbsDiff(fr.finalVector, {-1, 0, 0, 1}) == 0.0, "D4: eval result == [[-1, 0], [0, 1]]", fmtVec(fr.finalVector));
 
-            SymNetRuntime::Scratch scr;
+            SimmyNetRuntime::Scratch scr;
             gemmCounter() = 0;
             const bool dec = rt.decideFast(cl->folded, cl->inputVec.data(), scr);
             suite.check(dec && gemmCounter() == 1, "D4: classify InH of r*s*r -> 1 in a single pass", sfmt("gemm passes = %zu", gemmCounter()));
@@ -266,7 +266,7 @@ int main(int argc, char** argv) {
             const auto groups = interp.compile(SO2_SOURCE);
             const Job* inside = findJob(groups, "classify Wedge of R(pi / 4) * R(pi / 4) on [1, 0]");
             const Job* outside = findJob(groups, "classify Wedge of R(pi / 8) on [1, 0]");
-            SymNetRuntime::Scratch s;
+            SimmyNetRuntime::Scratch s;
             suite.check(inside && rt.decideFast(inside->folded, inside->inputVec.data(), s), "sector: 90 deg is inside Wedge [45, 135]");
             suite.check(outside && !rt.decideFast(outside->folded, outside->inputVec.data(), s), "sector: 22.5 deg is outside Wedge [45, 135]");
             suite.check(ContinuousSO2Group::sectorPerceptrons(kPi / 4, 3 * kPi / 4).mode == "AND" &&
@@ -293,7 +293,7 @@ int main(int argc, char** argv) {
             for (const Probe& p : probes) {
                 const auto groups = interp.compile(p.src);
                 const Job* j = findJob(groups, p.needle);
-                SymNetRuntime::Scratch s;
+                SimmyNetRuntime::Scratch s;
                 std::vector<double> x = j->inputVec;
                 gemmCounter() = 0;
                 bool d0 = rt.decideFast(j->folded, x.data(), s);
@@ -320,8 +320,8 @@ int main(int argc, char** argv) {
                 const auto groups = interp.compile(benchSource(L));
                 const auto c1 = Clock::now();
                 const Job& j = std::get<Job>(groups[0].tasks[0]);
-                const KronProgram kp = SymNetRuntime::expandKron(j.network);
-                SymNetRuntime::Scratch s;
+                const KronProgram kp = SimmyNetRuntime::expandKron(j.network);
+                SimmyNetRuntime::Scratch s;
                 std::vector<double> x = j.inputVec;
 
                 gemmCounter() = 0;
@@ -358,8 +358,8 @@ int main(int argc, char** argv) {
         banner(sfmt("SUMMARY: %d checks passed, %d failed   (%d native assertions + %d DSL checks; %d folded-vs-reference equivalence checks)",
                     total, failed, suite.passed, dsl.passed, dsl.xChecked));
         exitCode = failed == 0 ? 0 : 1;
-    } catch (const SymNetError& e) {
-        std::cerr << "SymNet error: " << e.what() << "\n";
+    } catch (const SimmyNetError& e) {
+        std::cerr << "SimmyNet error: " << e.what() << "\n";
         return 2;
     }
     return exitCode;

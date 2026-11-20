@@ -1,27 +1,20 @@
 cff-version: 1.2.0
-message: "If you use this software in your research or project, please cite it as below."
+message: "If you use this software, please cite it using the metadata from this file."
+title: "SimmyNet: A Symbolic DSL Compiler for Group-Theoretic Classifiers with an Exact Finite-Field (Lefschetz / Zeta / Weil) Engine"
+version: 2.2.0
 type: software
-
-title: "SymNet: Symbolic Multi Layer Perceptron based DSL Compiler for Group-Theoretic Boolean Expressions"
-abstract: "SymNet is a high-performance domain-specific compiler and native C++ SIMD runtime engine that translates symbolic algebraic group operations and continuous Lie manifold phasors into constant-time O(1) zero-branch linear tensor execution graphs."
-
+license: MIT
 authors:
   - family-names: "Bishla"
     given-names: "Mohamed Ehab"
-
-repository-code: "https://github.com/MohamedEh-ab/SymNet"
-url: "https://github.com/MohamedEh-ab/SymNet"
-
 keywords:
-  - domain-specific-compiler
-  - group-theory
-  - SIMD
-  - constant-folding
-  - neural-execution
-  - cpp17
-  - pybind11
+  - compiler
+  - dsl
+  - group theory
+  - finite fields
+  - elliptic curves
+  - Frobenius
+  - zeta function
 
-license: MIT
-date-released: "2026-11-11"
-version: "1.0.0"
-doi: "10.5281/zenodo.24123292"
+date-released: "2026-11-20"
+doi: 10.5281/zenodo.24123292

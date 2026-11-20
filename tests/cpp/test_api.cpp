@@ -1,15 +1,15 @@
-// test_api.cpp - native tests for the binding facade (include/symnet/Api.hpp).
+// test_api.cpp - native tests for the binding facade (include/simmynet/Api.hpp).
 //
-// The Python bindings are thin wrappers over symnet::api, so these assertions pin down the
+// The Python bindings are thin wrappers over simmynet::api, so these assertions pin down the
 // behaviour that tests/python/test_bindings.py re-checks from Python.
-#include <symnet/Api.hpp>
-#include <symnet/Examples.hpp>
+#include <simmynet/Api.hpp>
+#include <simmynet/Examples.hpp>
 
 #include <cstdio>
 #include <limits>
 
-using namespace symnet;
-namespace ex = symnet::examples;
+using namespace simmynet;
+namespace ex = simmynet::examples;
 
 static int g_checks = 0, g_fail = 0;
 #define CHECK(cond)                                                       \
@@ -55,15 +55,15 @@ int main() {
         CHECK(v.passed == 9 && v.transcript.find("[runtime]") != std::string::npos);
         int total = 0;
         for (const auto& e : ex::kExamples) total += interp.run(e.source).passed;
-        CHECK(total == 62);  // same total as symnet.py --all
+        CHECK(total == 62);  // same total as simmynet.py --all
     }
 
-    // ---- errors map to the SymNet hierarchy ---------------------------------------------
+    // ---- errors map to the SimmyNet hierarchy ---------------------------------------------
     std::printf("[3] errors\n");
     CHECK(throws<LexError>([&] { interp.run("group G { @ }"); }));
     CHECK(throws<ParseError>([&] { interp.run("group G {"); }));
     CHECK(throws<CompileError>([&] { interp.run("group G { classify Nope on (0, 0) }"); }));
-    CHECK(throws<SymNetError>([&] { interp.compile("group G { gen r = rotation(90) classify Nope on (0, 0) }"); }));
+    CHECK(throws<SimmyNetError>([&] { interp.compile("group G { gen r = rotation(90) classify Nope on (0, 0) }"); }));
 
     // ---- compile: synthesis result is inspectable ----------------------------------------
     std::printf("[3b] compile + inspect\n");
@@ -113,7 +113,7 @@ int main() {
         CHECK(a.decision == b.decision && a.decision == std::optional<bool>(true));
         CHECK(a.score && b.score && std::fabs(*a.score - *b.score) < 1e-12 && a.softScore.has_value());
         CHECK(cl->expected() == std::optional<bool>(true));
-        CHECK(throws<SymNetRuntimeError>([&] { ev->decide(); }));  // eval jobs have no hyperplane
+        CHECK(throws<SimmyNetRuntimeError>([&] { ev->decide(); }));  // eval jobs have no hyperplane
     }
     {  // verify / check task shapes (SO(2) program)
         const api::Program p = interp.compile(ex::SO2_SOURCE);
@@ -130,7 +130,7 @@ int main() {
 
     // ---- finite field -------------------------------------------------------------------
     std::printf("[5] finite-field facade\n");
-    using namespace symnet::ff;
+    using namespace simmynet::ff;
     {
         const EllipticCurveNode e(2, 3, 97);
         CHECK(e.valid() && !e.trace().has_value() && !FrobeniusGenerator::lift(e).has_value());

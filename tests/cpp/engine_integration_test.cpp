@@ -1,15 +1,15 @@
 // tests/engine_integration_test.cpp
 //
-// Cross-checks the exact integer passes (symnet::ff) against the project's own
+// Cross-checks the exact integer passes (simmynet::ff) against the project's own
 // double-based MatrixEngine.hpp kernels, on inputs where doubles are exact.
 #include <cstdint>
 #include <cstdio>
 #include <limits>
 #include <random>
 
-#include "symnet/finite_field/WeilProver.hpp"
+#include "simmynet/finite_field/WeilProver.hpp"
 
-using namespace symnet::ff;
+using namespace simmynet::ff;
 
 static int g_checks = 0, g_fail = 0;
 #define CHECK(cond)                                                    \
@@ -26,18 +26,18 @@ int main() {
   std::uniform_int_distribution<int> small(-50, 50);
 
   // 1. ff::mul == engine operator* (exact on small integers); counter accounting.
-  std::printf("[1] ff::mul vs symnet::Matrix2x2 operator*, gemmCounter accounting\n");
+  std::printf("[1] ff::mul vs simmynet::Matrix2x2 operator*, gemmCounter accounting\n");
   for (int it = 0; it < 5000; ++it) {
     const Mat2 A{{small(rng), small(rng), small(rng), small(rng)}};
     const Mat2 B{{small(rng), small(rng), small(rng), small(rng)}};
     const auto EA = toEngine(A), EB = toEngine(B);
     CHECK(EA.has_value() && EB.has_value());
 
-    const std::size_t c0 = symnet::gemmCounter();
+    const std::size_t c0 = simmynet::gemmCounter();
     const Checked<Mat2> P = mul(A, B);
-    const std::size_t c1 = symnet::gemmCounter();
-    const symnet::Matrix2x2 E = *EA * *EB;                 // engine kernel (also counts 1)
-    const std::size_t c2 = symnet::gemmCounter();
+    const std::size_t c1 = simmynet::gemmCounter();
+    const simmynet::Matrix2x2 E = *EA * *EB;                 // engine kernel (also counts 1)
+    const std::size_t c2 = simmynet::gemmCounter();
     CHECK(c1 - c0 == 1 && c2 - c1 == 1);
     CHECK(!P.overflow);
     CHECK(equal(P.value, *fromEngine(E)));
@@ -49,8 +49,8 @@ int main() {
   for (long long q : qs) {
     for (long long t = -static_cast<long long>(2 * std::sqrt(double(q))); t <= static_cast<long long>(2 * std::sqrt(double(q))); ++t) {
       const Mat2 F{{0, -q, 1, t}};
-      symnet::Matrix2x2 X = symnet::Matrix2x2::identity();
-      const symnet::Matrix2x2 EF = *toEngine(F);
+      simmynet::Matrix2x2 X = simmynet::Matrix2x2::identity();
+      const simmynet::Matrix2x2 EF = *toEngine(F);
       for (int n = 1; n <= 5; ++n) {
         X = EF * X;
         const Checked<Mat2> P = LefschetzTracePass::power(F, static_cast<std::uint64_t>(n));
@@ -61,14 +61,14 @@ int main() {
   }
 
   // 3. Exact F^{-1} = adj(F)/det(F)  vs  the engine's Gauss-Jordan inverse (DMat).
-  std::printf("[3] adj(F)/q vs symnet::inverse(DMat)\n");
+  std::printf("[3] adj(F)/q vs simmynet::inverse(DMat)\n");
   for (long long q : qs) {
     for (long long t = -9; t <= 9; ++t) {
       const Mat2 F{{0, -q, 1, t}};
-      symnet::DMat M(2, 2);
+      simmynet::DMat M(2, 2);
       for (int i = 0; i < 2; ++i)
         for (int j = 0; j < 2; ++j) M(i, j) = static_cast<double>(F.m[i * 2 + j]);
-      const symnet::DMat Inv = symnet::inverse(M);
+      const simmynet::DMat Inv = simmynet::inverse(M);
       const Checked<Mat2> adj = adjugate(F);
       const double den = static_cast<double>(det(F).value);
       double err = 0.0;
@@ -85,7 +85,7 @@ int main() {
   CHECK(!toEngine(Mat2{{0, -bigq, 1, 3}}).has_value());                      // > 2^53
   CHECK(toEngine(Mat2{{0, -(std::int64_t{1} << 53), 1, 3}}).has_value());     // == 2^53 exact
   CHECK(!toEngine(Mat2{{0, -((std::int64_t{1} << 53) + 1), 1, 3}}).has_value());
-  symnet::Matrix2x2 H = symnet::Matrix2x2::identity();
+  simmynet::Matrix2x2 H = simmynet::Matrix2x2::identity();
   H.a[1] = 0.5;
   CHECK(!fromEngine(H).has_value());                                          // not an integer
   H.a[1] = std::numeric_limits<double>::quiet_NaN();

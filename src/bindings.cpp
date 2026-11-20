@@ -1,27 +1,29 @@
-// bindings.cpp - Python extension module `symnet_native` (pybind11).
+// bindings.cpp - compiled core `simmynet._core` (pybind11). The user-facing package is
+// python/simmynet/__init__.py, which re-exports everything defined here.
 //
-//   symnet_native.Matrix2x2 / Matrix3x3 / Matrix4x4   stack-allocated, 32-byte aligned matrices
-//   symnet_native.eval_word_compiled(k, factors, weight, bias) -> bool
-//   symnet_native.CompiledWord(k, factors)             fold once, decide many times
-//   symnet_native.gemm_count() / reset_gemm_count()    instrumentation (matmul passes executed)
-//   symnet_native.dsl           the DSL interpreter/compiler          (bind_dsl.cpp)
-//   symnet_native.finite_field  exact Frobenius / zeta / Weil passes  (bind_finite_field.cpp)
-//   symnet_native.SymNetError and subclasses: LexError, ParseError, CompileError, SymNetRuntimeError
+//   simmynet.Matrix2x2 / Matrix3x3 / Matrix4x4   stack-allocated, 32-byte aligned matrices
+//   simmynet.eval_word_compiled(k, factors, weight, bias) -> bool
+//   simmynet.CompiledWord(k, factors)             fold once, decide many times
+//   simmynet.gemm_count() / reset_gemm_count()    instrumentation (matmul passes executed)
+//   simmynet.dsl           the DSL interpreter/compiler          (bind_dsl.cpp)
+//   simmynet.finite_field  exact Frobenius / zeta / Weil passes  (bind_finite_field.cpp)
+//   simmynet.SimmyNetError and subclasses: LexError, ParseError, CompileError, SimmyNetRuntimeError
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
 #include "bindings.hpp"
 
-#include <symnet/MatrixEngine.hpp>
-#include <symnet/WordEval.hpp>
+#include <simmynet/MatrixEngine.hpp>
+#include <simmynet/Version.hpp>
+#include <simmynet/WordEval.hpp>
 
 #include <string>
 #include <utility>
 #include <vector>
 
 namespace py = pybind11;
-using namespace symnet;
+using namespace simmynet;
 
 namespace {
 
@@ -77,8 +79,8 @@ void bindMatrix(py::module_& m, const char* name) {
 
 }  // namespace
 
-PYBIND11_MODULE(symnet_native, m) {
-    m.doc() = "SymNetNative: constant-folded group-word evaluation with fixed-size SIMD-friendly matrices";
+PYBIND11_MODULE(_core, m) {
+    m.doc() = "SimmyNet: constant-folded group-word evaluation with fixed-size SIMD-friendly matrices";
 
     bindMatrix<2>(m, "Matrix2x2");
     bindMatrix<3>(m, "Matrix3x3");
@@ -129,7 +131,7 @@ For repeated decisions on one word use CompiledWord, which folds only once.)doc"
 
     m.def("gemm_count", []() { return gemmCounter(); }, "Matrix-multiplication passes executed so far.");
     m.def("reset_gemm_count", []() { gemmCounter() = 0; });
-    m.attr("__version__") = "1.1.0";
+    m.attr("__version__") = SIMMYNET_VERSION_STRING;
 
     bind_dsl(m);           // also registers the exception hierarchy
     bind_finite_field(m);

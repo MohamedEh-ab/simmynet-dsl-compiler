@@ -1,7 +1,11 @@
-// bind_finite_field.cpp - Python bindings for the exact finite-field passes (symnet::ff).
+// bind_finite_field.cpp - Python bindings for the exact finite-field passes (simmynet::ff).
 //
-//   symnet_native.finite_field.EllipticCurve(a, b, q)     y^2 = x^3 + a x + b over F_q
-//   .with_trace(t) / .resolve(callable) / .valid() / .trace
+//   simmynet.finite_field.EllipticCurve(a, b, q)     y^2 = x^3 + a x + b over F_q
+//   .with_trace(t)   attach a trace (ValueError if it violates the Hasse-Weil bound t^2 <= 4q)
+//   .resolve(callable) / .valid() / .trace
+//   .count_points() / .compute_trace() / .with_computed_trace()
+//                    exact O(p) Legendre-symbol point count, primes 5 <= p <= 10**6 (NOT Schoof)
+//   finite_field.legendre_trace_resolver / hasse_bound_holds / MAX_LEGENDRE_MODULUS
 //   finite_field.lift(curve) -> FrobeniusNode | None      F = [[0, -q], [1, a_q]]
 //   finite_field.Mat2                                     exact int64 2x2 matrix
 //   finite_field.trace / determinant / characteristic_polynomial / power /
@@ -15,7 +19,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include <symnet/Api.hpp>
+#include <simmynet/Api.hpp>
 
 #include "bindings.hpp"
 
@@ -26,11 +30,27 @@
 #include <vector>
 
 namespace py = pybind11;
-namespace api = symnet::api;
-namespace ff = symnet::ff;
+namespace api = simmynet::api;
+namespace ff = simmynet::ff;
 using i64 = std::int64_t;
 
 namespace {
+
+// Why EllipticCurve.count_points() has no answer, as a ValueError message.
+std::string legendre_domain_error(const ff::EllipticCurveNode& e) {
+    const i64 q = e.q();
+    if (q < 5 || q > ff::kMaxLegendreModulus)
+        return "Legendre point counting needs a prime q with 5 <= q <= " + std::to_string(ff::kMaxLegendreModulus) +
+               " (got q = " + std::to_string(q) + "); use with_trace(t) or resolve(callable) for larger q";
+    if (!ff::detail::is_prime_small(static_cast<std::uint64_t>(q)))
+        return "q = " + std::to_string(q) + " is not prime";
+    return "the curve y^2 = x^3 + " + std::to_string(e.a()) + "x + " + std::to_string(e.b()) + " is singular mod " +
+           std::to_string(q);
+}
+
+std::string hasse_error(i64 t, i64 q) {
+    return "trace " + std::to_string(t) + " violates the Hasse-Weil bound t^2 <= 4q for q = " + std::to_string(q);
+}
 
 std::string repr(const ff::Mat2& a) {
     return "Mat2(" + std::to_string(a.m[0]) + ", " + std::to_string(a.m[1]) + ", " + std::to_string(a.m[2]) +
@@ -96,9 +116,9 @@ void bind_finite_field(py::module_& root) {
         .def("adjugate", [](const ff::Mat2& a) { return api::ffAdjugate(a); })
         .def("transpose", [](const ff::Mat2& a) { return ff::transpose(a); })
         .def("to_engine", [](const ff::Mat2& a) { return ff::toEngine(a); },
-             "As symnet_native.Matrix2x2, or None if any |entry| > 2**53.")
-        .def_static("from_engine", [](const symnet::Matrix2x2& e) { return ff::fromEngine(e); }, py::arg("matrix"),
-                    "From symnet_native.Matrix2x2, or None unless every entry is an integer with |entry| <= 2**53.")
+             "As simmynet.Matrix2x2, or None if any |entry| > 2**53.")
+        .def_static("from_engine", [](const simmynet::Matrix2x2& e) { return ff::fromEngine(e); }, py::arg("matrix"),
+                    "From simmynet.Matrix2x2, or None unless every entry is an integer with |entry| <= 2**53.")
         .def("__eq__", [](const ff::Mat2& a, const ff::Mat2& b) { return ff::equal(a, b); }, py::is_operator())
         .def("__repr__", [](const ff::Mat2& a) { return repr(a); });
 
@@ -112,18 +132,67 @@ void bind_finite_field(py::module_& root) {
                                "Frobenius trace a_q, or None if unresolved.")
         .def("valid", [](const ff::EllipticCurveNode& e) { return e.valid(); },
              "3 < q <= 2**62, q odd, q % 3 != 0 and the curve is nonsingular mod q (primality is NOT tested).")
-        .def("with_trace", [](const ff::EllipticCurveNode& e, i64 t) { return e.with_trace(t); }, py::arg("a_q"),
-             "Copy of the curve with a known trace attached.")
-        .def("resolve", [](const ff::EllipticCurveNode& e, const ff::TraceResolver& r) { return e.resolve(r); },
+        .def("with_trace",
+             [](const ff::EllipticCurveNode& e, i64 t) {
+                 const std::optional<ff::EllipticCurveNode> c = e.try_with_trace(t);
+                 if (!c) throw py::value_error(hasse_error(t, e.q()));
+                 return *c;
+             },
+             py::arg("a_q"),
+             "Copy of the curve with a known trace attached. Raises ValueError if a_q violates the Hasse-Weil "
+             "bound a_q**2 <= 4*q (no elliptic curve over F_q has such a trace). The bound is necessary, not "
+             "sufficient: it does not prove a_q is the trace of THIS curve.")
+        .def("resolve",
+             [](const ff::EllipticCurveNode& e, const ff::TraceResolver& r) {
+                 const std::optional<i64> t = r ? r(e) : std::nullopt;
+                 if (t && !ff::hasse_bound_holds(*t, e.q())) throw py::value_error(hasse_error(*t, e.q()));
+                 return e.resolve([t](const ff::EllipticCurveNode&) { return t; });
+             },
              py::arg("resolver"),
-             "Copy with the trace obtained from resolver(curve) -> int | None (Schoof/SEA plugs in here).")
+             "Copy with the trace obtained from resolver(curve) -> int | None (a table, an external Schoof/SEA "
+             "implementation, legendre_trace_resolver, ...). None leaves the trace unresolved; a value that "
+             "violates the Hasse-Weil bound raises ValueError.")
+        .def("count_points",
+             [](const ff::EllipticCurveNode& e) {
+                 const std::optional<i64> n = e.count_points();
+                 if (!n) throw py::value_error(legendre_domain_error(e));
+                 return *n;
+             },
+             "#E(F_q) including the point at infinity, by exact O(q) Legendre-symbol summation "
+             "(1 + sum_x (1 + chi(x^3 + a x + b))). Only for prime q with 5 <= q <= 10**6 (MAX_LEGENDRE_MODULUS); "
+             "raises ValueError otherwise or if the curve is singular. This is not Schoof's algorithm.")
+        .def("compute_trace",
+             [](const ff::EllipticCurveNode& e) {
+                 const std::optional<i64> t = e.compute_trace();
+                 if (!t) throw py::value_error(legendre_domain_error(e));
+                 return *t;
+             },
+             "Frobenius trace a_q = q + 1 - count_points(). Same domain and errors as count_points().")
+        .def("with_computed_trace",
+             [](const ff::EllipticCurveNode& e) {
+                 const std::optional<i64> t = e.compute_trace();
+                 if (!t) throw py::value_error(legendre_domain_error(e));
+                 return e.with_trace(*t);
+             },
+             "Copy of the curve with compute_trace() attached. Same domain and errors as count_points().")
         .def("__repr__", [](const ff::EllipticCurveNode& e) {
             return "EllipticCurve(a=" + std::to_string(e.a()) + ", b=" + std::to_string(e.b()) +
                    ", q=" + std::to_string(e.q()) + ")";
         });
 
     m.def("schoof_trace_stub", [](const ff::EllipticCurveNode&) { return std::optional<i64>{}; }, py::arg("curve"),
-          "Explicit stub resolver: always returns None (no point counting is implemented).");
+          "Placeholder for a future Schoof/SEA resolver: ALWAYS returns None. Schoof/SEA is not implemented; use "
+          "legendre_trace_resolver (q <= 10**6) or your own resolver.");
+
+    m.def("legendre_trace_resolver", [](const ff::EllipticCurveNode& e) { return e.compute_trace(); },
+          py::arg("curve"),
+          "Resolver backed by the exact O(q) Legendre point counter: curve.resolve(legendre_trace_resolver). "
+          "Returns None for q outside the counter's domain (prime 5 <= q <= 10**6) or singular curves.");
+
+    m.def("hasse_bound_holds", [](i64 t, i64 q) { return ff::hasse_bound_holds(t, q); }, py::arg("t"), py::arg("q"),
+          "Exact Hasse-Weil bound check t**2 <= 4*q (128-bit arithmetic, no floating point); False for q <= 0.");
+
+    m.attr("MAX_LEGENDRE_MODULUS") = ff::kMaxLegendreModulus;
 
     py::class_<ff::FrobeniusNode>(m, "FrobeniusNode", "A lifted Frobenius generator: the 2x2 buffer F and the field size q.")
         .def(py::init([](const ff::Mat2& F, i64 q) { return ff::FrobeniusNode{F, q}; }), py::arg("F"), py::arg("q"))
@@ -134,7 +203,7 @@ void bind_finite_field(py::module_& root) {
     m.def("lift", [](const ff::EllipticCurveNode& e) { return ff::FrobeniusGenerator::lift(e); }, py::arg("curve"),
           "Curve -> FrobeniusNode with F = [[0, -q], [1, a_q]]; None if the curve is invalid or its trace is unresolved.");
     m.def("lift_to_engine", [](const ff::EllipticCurveNode& e) { return ff::FrobeniusGenerator::lift_to_engine(e); },
-          py::arg("curve"), "Same lift as symnet_native.Matrix2x2; None if an entry exceeds 2**53.");
+          py::arg("curve"), "Same lift as simmynet.Matrix2x2; None if an entry exceeds 2**53.");
 
     // ---- Lefschetz trace pass ---------------------------------------------------------------
     m.def("trace", [](const ff::Mat2& F) { return ff::LefschetzTracePass::trace(F); }, py::arg("F"), "Tr(F).");

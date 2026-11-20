@@ -29,3 +29,14 @@ dist/
 .idea/
 .DS_Store
 *.swp
+
+# Packaging
+wheelhouse/
+*.whl
+*.tar.gz
+.venv/
+venv/
+
+# Lean 4 bridge
+bridges/lean4/.lake/
+bridges/lean4/test/core_smoke_rules.json

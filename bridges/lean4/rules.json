@@ -1,0 +1,183 @@
+{"schema": "simmynet.lean-rules/1",
+ "rules":
+ [{"type_tag": "dihedral",
+   "statement":
+   "∀ (n : ℕ), DihedralGroup.sr 0 * DihedralGroup.r 1 * DihedralGroup.sr 0 = (DihedralGroup.r 1)⁻¹",
+   "params": [{"name": "n", "hyps": [], "dom": "nat"}],
+   "name": "SimmyBridge.Examples.dihedral_srs_inv",
+   "module": "SimmyBridge.Examples",
+   "equations":
+   [{"rhs":
+     {"op": "inv",
+      "modulus": {"op": "var", "name": "n", "dom": "nat"},
+      "dom": "dihedral",
+      "args":
+      [{"op": "dih_r",
+        "modulus": {"op": "var", "name": "n", "dom": "nat"},
+        "dom": "dihedral",
+        "args":
+        [{"value": "1",
+          "op": "lit",
+          "modulus": {"op": "var", "name": "n", "dom": "nat"},
+          "dom": "zmod"}]}]},
+     "lhs":
+     {"op": "mul",
+      "modulus": {"op": "var", "name": "n", "dom": "nat"},
+      "dom": "dihedral",
+      "args":
+      [{"op": "mul",
+        "modulus": {"op": "var", "name": "n", "dom": "nat"},
+        "dom": "dihedral",
+        "args":
+        [{"op": "dih_sr",
+          "modulus": {"op": "var", "name": "n", "dom": "nat"},
+          "dom": "dihedral",
+          "args":
+          [{"value": "0",
+            "op": "lit",
+            "modulus": {"op": "var", "name": "n", "dom": "nat"},
+            "dom": "zmod"}]},
+         {"op": "dih_r",
+          "modulus": {"op": "var", "name": "n", "dom": "nat"},
+          "dom": "dihedral",
+          "args":
+          [{"value": "1",
+            "op": "lit",
+            "modulus": {"op": "var", "name": "n", "dom": "nat"},
+            "dom": "zmod"}]}]},
+       {"op": "dih_sr",
+        "modulus": {"op": "var", "name": "n", "dom": "nat"},
+        "dom": "dihedral",
+        "args":
+        [{"value": "0",
+          "op": "lit",
+          "modulus": {"op": "var", "name": "n", "dom": "nat"},
+          "dom": "zmod"}]}]}}],
+   "axioms": ["Quot.sound", "propext"]},
+  {"type_tag": "finite_field",
+   "statement": "∀ (p : ℕ) [inst : Fact (Nat.Prime p)] (x : ZMod p), x ^ p = x",
+   "params":
+   [{"name": "p", "hyps": ["prime"], "dom": "nat"},
+    {"name": "x",
+     "modulus": {"op": "var", "name": "p", "dom": "nat"},
+     "hyps": [],
+     "dom": "zmod"}],
+   "name": "SimmyBridge.Examples.frobenius_fixed",
+   "module": "SimmyBridge.Examples",
+   "equations":
+   [{"rhs":
+     {"op": "var",
+      "name": "x",
+      "modulus": {"op": "var", "name": "p", "dom": "nat"},
+      "dom": "zmod"},
+     "lhs":
+     {"op": "pow",
+      "modulus": {"op": "var", "name": "p", "dom": "nat"},
+      "dom": "zmod",
+      "args":
+      [{"op": "var",
+        "name": "x",
+        "modulus": {"op": "var", "name": "p", "dom": "nat"},
+        "dom": "zmod"},
+       {"op": "var", "name": "p", "dom": "nat"}]}}],
+   "axioms": ["Classical.choice", "Quot.sound", "propext"]},
+  {"type_tag": "algebraic_tuple",
+   "statement": "Real.pi / 4 + Real.pi / 4 = Real.pi / 2",
+   "params": [],
+   "name": "SimmyBridge.Examples.quarter_turns",
+   "module": "SimmyBridge.Examples",
+   "equations":
+   [{"rhs":
+     {"op": "div",
+      "dom": "real",
+      "args":
+      [{"op": "pi", "dom": "real"},
+       {"value": "2", "op": "lit", "dom": "real"}]},
+     "lhs":
+     {"op": "add",
+      "dom": "real",
+      "args":
+      [{"op": "div",
+        "dom": "real",
+        "args":
+        [{"op": "pi", "dom": "real"},
+         {"value": "4", "op": "lit", "dom": "real"}]},
+       {"op": "div",
+        "dom": "real",
+        "args":
+        [{"op": "pi", "dom": "real"},
+         {"value": "4", "op": "lit", "dom": "real"}]}]}}],
+   "axioms": ["Classical.choice", "Quot.sound", "propext"]},
+  {"type_tag": "so2_phasor",
+   "statement":
+   "∀ (a b : ℝ), Real.cos (a + b) = Real.cos a * Real.cos b - Real.sin a * Real.sin b ∧ Real.sin (a + b) = Real.sin a * Real.cos b + Real.cos a * Real.sin b",
+   "params":
+   [{"name": "a", "hyps": [], "dom": "real"},
+    {"name": "b", "hyps": [], "dom": "real"}],
+   "name": "SimmyBridge.Examples.so2_angle_add",
+   "module": "SimmyBridge.Examples",
+   "equations":
+   [{"rhs":
+     {"op": "sub",
+      "dom": "real",
+      "args":
+      [{"op": "mul",
+        "dom": "real",
+        "args":
+        [{"op": "cos",
+          "dom": "real",
+          "args": [{"op": "var", "name": "a", "dom": "real"}]},
+         {"op": "cos",
+          "dom": "real",
+          "args": [{"op": "var", "name": "b", "dom": "real"}]}]},
+       {"op": "mul",
+        "dom": "real",
+        "args":
+        [{"op": "sin",
+          "dom": "real",
+          "args": [{"op": "var", "name": "a", "dom": "real"}]},
+         {"op": "sin",
+          "dom": "real",
+          "args": [{"op": "var", "name": "b", "dom": "real"}]}]}]},
+     "lhs":
+     {"op": "cos",
+      "dom": "real",
+      "args":
+      [{"op": "add",
+        "dom": "real",
+        "args":
+        [{"op": "var", "name": "a", "dom": "real"},
+         {"op": "var", "name": "b", "dom": "real"}]}]}},
+    {"rhs":
+     {"op": "add",
+      "dom": "real",
+      "args":
+      [{"op": "mul",
+        "dom": "real",
+        "args":
+        [{"op": "sin",
+          "dom": "real",
+          "args": [{"op": "var", "name": "a", "dom": "real"}]},
+         {"op": "cos",
+          "dom": "real",
+          "args": [{"op": "var", "name": "b", "dom": "real"}]}]},
+       {"op": "mul",
+        "dom": "real",
+        "args":
+        [{"op": "cos",
+          "dom": "real",
+          "args": [{"op": "var", "name": "a", "dom": "real"}]},
+         {"op": "sin",
+          "dom": "real",
+          "args": [{"op": "var", "name": "b", "dom": "real"}]}]}]},
+     "lhs":
+     {"op": "sin",
+      "dom": "real",
+      "args":
+      [{"op": "add",
+        "dom": "real",
+        "args":
+        [{"op": "var", "name": "a", "dom": "real"},
+         {"op": "var", "name": "b", "dom": "real"}]}]}}],
+   "axioms": ["Classical.choice", "Quot.sound", "propext"]}],
+ "lean_version": "4.36.0"}

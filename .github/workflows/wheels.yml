@@ -1,0 +1,145 @@
+# Build, audit and test simmynet wheels + sdist on Linux / macOS / Windows with cibuildwheel, and
+# publish to PyPI only after EVERY job below has passed.
+#
+#   pull_request / push to main   build + test everything (no upload)
+#   release published              build + test everything, then upload to PyPI (trusted publishing)
+#   workflow_dispatch              manual dry run (no upload)
+#
+# One-time setup on PyPI: add this repository + workflow (wheels.yml) + environment "pypi" as a
+# trusted publisher for the project "simmynet" (https://docs.pypi.org/trusted-publishers/); no API
+# token is stored anywhere.
+name: wheels
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: wheels-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ----------------------------------------------------------------------------------------------
+  # Source distribution + proof that `pip install <sdist>` works with nothing but a compiler.
+  # ----------------------------------------------------------------------------------------------
+  sdist:
+    name: sdist (build + clean-room install)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build sdist
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build --sdist
+          twine check dist/*
+      - name: Check sdist contents
+        run: python scripts/check_wheel.py dist/*.tar.gz
+      - name: Install the sdist in a clean virtualenv and run the test-suites
+        run: |
+          python -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install dist/*.tar.gz
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/venv/bin/python" "$GITHUB_WORKSPACE/tests/python/test_bindings.py"
+          "$RUNNER_TEMP/venv/bin/python" "$GITHUB_WORKSPACE/tests/python/test_wrapper.py"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  # ----------------------------------------------------------------------------------------------
+  # C++ test-suites (CTest) in a native (-march=native) configuration, plus a portable one.
+  # ----------------------------------------------------------------------------------------------
+  cpp_tests:
+    name: C++ tests (${{ matrix.os }}, native=${{ matrix.native }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        native: ["ON", "OFF"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Configure, build, test
+        run: |
+          python -m pip install --upgrade cmake ninja pybind11
+          cmake -S . -B build -G Ninja -DSIMMYNET_NATIVE_ARCH=${{ matrix.native }} -DSIMMYNET_FETCH_PYBIND11=OFF
+          cmake --build build
+          ctest --test-dir build --output-on-failure
+
+  # ----------------------------------------------------------------------------------------------
+  # Wheels. cibuildwheel builds each wheel in an isolated environment (manylinux / musllinux containers on
+  # Linux, clean virtualenvs elsewhere), repairs it, installs it into ANOTHER clean environment and runs
+  # `test-command` from pyproject.toml against the installed wheel: the import smoke test, both Python
+  # suites and scripts/check_extension_deps.py (no external runtime libraries).
+  # ----------------------------------------------------------------------------------------------
+  wheels:
+    name: wheels (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # ubuntu-24.04-arm builds the aarch64 wheels natively; macos-latest (Apple Silicon) builds x86_64 + arm64.
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build + test wheels
+        uses: pypa/cibuildwheel@v4.2.0
+        with:
+          output-dir: wheelhouse
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check wheel contents (hybrid package complete, no bundled foreign libraries, correct tags / metadata)
+        shell: bash
+        run: |
+          python -m pip install --upgrade twine
+          python scripts/check_wheel.py wheelhouse/*.whl
+          twine check wheelhouse/*.whl
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  # ----------------------------------------------------------------------------------------------
+  # Upload: only for a published GitHub release, and only if every job above succeeded.
+  # ----------------------------------------------------------------------------------------------
+  upload_pypi:
+    name: upload to PyPI
+    needs: [sdist, cpp_tests, wheels]
+    if: github.event_name == 'release' && github.event.action == 'published'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/simmynet
+    permissions:
+      id-token: write        # trusted publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - name: Verify the release tag matches the built package version
+        run: |
+          ls -l dist
+          ver="${GITHUB_REF_NAME#v}"
+          test -n "$(ls dist/simmynet-${ver}[-.]* 2>/dev/null)" || { echo "tag '${GITHUB_REF_NAME}' does not match the built version (see dist/ above)"; exit 1; }
+          # every file must carry that version, so a stray artifact can never be uploaded
+          for f in dist/*; do case "$(basename "$f")" in simmynet-${ver}[-.]*) ;; *) echo "unexpected file $f"; exit 1;; esac; done
+      - uses: pypa/gh-action-pypi-publish@release/v1

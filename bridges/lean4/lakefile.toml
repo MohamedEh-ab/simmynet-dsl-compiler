@@ -1,0 +1,48 @@
+# Lake package for the SimmyNet <-> Lean 4 bridge.
+#
+# Build order (see README.md):
+#   1. cmake -S ../.. -B ../../build -DSIMMYNET_BUILD_LEAN_FFI=ON && cmake --build ../../build   # libsimmynet_lean
+#   2. lake update && lake exe cache get
+#   3. lake build
+#
+# `moreLinkArgs` link libsimmynet_lean from ../../build/bridges/lean4 (the default CMake output
+# directory; edit the two paths if your CMake build directory is not `build/`).  The rpath is relative
+# to the binary ($ORIGIN, Linux); on macOS replace it by -Wl,-rpath,@loader_path/....
+#
+# --allow-shlib-undefined: Lean ships its own clang/lld with an OLD glibc sysroot, which refuses to
+# link a system-built .so that references newer glibc symbols (arc4random, pthread_once@2.34, ...).
+# The symbols resolve against the system libc when the program runs.  (macOS: use
+# -Wl,-undefined,dynamic_lookup instead.)
+name = "simmybridge"
+version = "0.1.0"
+defaultTargets = ["SimmyBridge", "SimmyExamples", "SimmyFFI", "SimmyOracleEval", "simmy_oracle_demo"]
+
+[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4.git"
+rev = "v4.36.0"
+
+# Attribute + `#export_simmy_rules` (imports only `Lean`).
+[[lean_lib]]
+name = "SimmyBridge"
+
+# Kernel-checked Mathlib theorems tagged @[simmy_rule] (root module SimmyBridge.Examples).
+[[lean_lib]]
+name = "SimmyExamples"
+roots = ["SimmyBridge.Examples"]
+
+# `@[extern]` oracle primitives.  precompileModules builds libSimmyFFI as a shared library so that
+# `#eval` in downstream modules can resolve the externs; it must therefore be linked to simmynet_lean.
+[[lean_lib]]
+name = "SimmyFFI"
+precompileModules = true
+moreLinkArgs = ["-L../../build/bridges/lean4", "-lsimmynet_lean", "-Wl,--allow-shlib-undefined", "-Wl,-rpath,$ORIGIN/../../../../../build/bridges/lean4"]
+
+# `#eval` examples: builds only if the externs resolve through the interpreter (a link/ABI smoke test).
+[[lean_lib]]
+name = "SimmyOracleEval"
+
+[[lean_exe]]
+name = "simmy_oracle_demo"
+root = "SimmyOracleDemo"
+moreLinkArgs = ["-L../../build/bridges/lean4", "-lsimmynet_lean", "-Wl,--allow-shlib-undefined", "-Wl,-rpath,$ORIGIN/../../../../../build/bridges/lean4"]

@@ -1,0 +1,32 @@
+# GitHub Pages / Jekyll configuration for the SimmyNet (simmynet) documentation.
+# Enable with: repository Settings -> Pages -> Source: "Deploy from a branch", branch main, folder /docs.
+title: SimmyNet
+description: Compile symbolic group-theoretic classifiers and exact finite-field checks into constant-time kernels (simmynet v2.2.0)
+baseurl: ""                      # set to "/<repository-name>" for a project site if your theme needs it
+url: ""                          # e.g. https://<user>.github.io
+
+remote_theme: just-the-docs/just-the-docs
+plugins:
+  - jekyll-remote-theme
+  - jekyll-relative-links        # lets pages link to each other as plain "architecture.md"
+
+relative_links:
+  enabled: true
+  collections: false
+
+color_scheme: light
+search_enabled: true
+heading_anchors: true
+back_to_top: true
+back_to_top_text: "Back to top"
+footer_content: "SimmyNet v2.2.0 &middot; MIT License &middot; &copy; 2026 Mohamed Ehab"
+
+# Math is rendered client-side by MathJax (see _includes/head_custom.html).
+kramdown:
+  input: GFM
+  math_engine: null              # leave $...$ untouched for MathJax
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules

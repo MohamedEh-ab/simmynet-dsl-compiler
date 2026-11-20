@@ -1,45 +1,45 @@
-// bind_dsl.cpp - Python bindings for the SymNet DSL compiler and runtime.
+// bind_dsl.cpp - Python bindings for the SimmyNet DSL compiler and runtime.
 //
-//   symnet_native.dsl.Interpreter(sharpness=10.0)   .run(source, transcript=False) -> RunResult
+//   simmynet.dsl.Interpreter(sharpness=10.0)   .run(source, transcript=False) -> RunResult
 //                                                   .compile(source)               -> Program
 //   Program.groups -> Group -> .tasks -> Task -> .jobs -> Job -> .evaluate() -> ForwardResult
-//   symnet_native.dsl.tokenize(source)              -> [(kind, text, line), ...]
-//   Exceptions (top level): SymNetError > LexError, ParseError, CompileError, SymNetRuntimeError
+//   simmynet.dsl.tokenize(source)              -> [(kind, text, line), ...]
+//   Exceptions (top level): SimmyNetError > LexError, ParseError, CompileError, SimmyNetRuntimeError
 //
-// All logic lives in symnet/Api.hpp; this file only registers it.
+// All logic lives in simmynet/Api.hpp; this file only registers it.
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include <symnet/Api.hpp>
+#include <simmynet/Api.hpp>
 
 #include "bindings.hpp"
 
 #include <string>
 
 namespace py = pybind11;
-namespace api = symnet::api;
+namespace api = simmynet::api;
 
 void bind_dsl(py::module_& root) {
     // ---- exception hierarchy (registered base-first so derived translators win) -----------
-    auto& base = py::register_exception<symnet::SymNetError>(root, "SymNetError");
-    py::register_exception<symnet::LexError>(root, "LexError", base);
-    py::register_exception<symnet::ParseError>(root, "ParseError", base);
-    py::register_exception<symnet::CompileError>(root, "CompileError", base);
-    py::register_exception<symnet::SymNetRuntimeError>(root, "SymNetRuntimeError", base);
+    auto& base = py::register_exception<simmynet::SimmyNetError>(root, "SimmyNetError");
+    py::register_exception<simmynet::LexError>(root, "LexError", base);
+    py::register_exception<simmynet::ParseError>(root, "ParseError", base);
+    py::register_exception<simmynet::CompileError>(root, "CompileError", base);
+    py::register_exception<simmynet::SimmyNetRuntimeError>(root, "SimmyNetRuntimeError", base);
 
-    py::module_ m = make_submodule(root, "dsl", "SymNet DSL: lexer, parser, compiler (constant folding, kernel synthesis) and runtime.");
+    py::module_ m = make_submodule(root, "dsl", "SimmyNet DSL: lexer, parser, compiler (constant folding, kernel synthesis) and runtime.");
 
     // ---- results ------------------------------------------------------------------------
-    py::class_<symnet::ForwardResult>(m, "ForwardResult",
+    py::class_<simmynet::ForwardResult>(m, "ForwardResult",
                                       "Result of running a job. `decision`, `score` and `soft_score` are None "
                                       "for jobs without a hyperplane (eval).")
-        .def_readonly("input_vector", &symnet::ForwardResult::inputVector)
-        .def_readonly("final_vector", &symnet::ForwardResult::finalVector,
+        .def_readonly("input_vector", &simmynet::ForwardResult::inputVector)
+        .def_readonly("final_vector", &simmynet::ForwardResult::finalVector,
                       "State fed into the first decision layer (the group element for eval jobs).")
-        .def_readonly("decision", &symnet::ForwardResult::decision)
-        .def_readonly("score", &symnet::ForwardResult::score)
-        .def_readonly("soft_score", &symnet::ForwardResult::softScore)
-        .def_readonly("trace", &symnet::ForwardResult::trace, "List of (layer label, vector).");
+        .def_readonly("decision", &simmynet::ForwardResult::decision)
+        .def_readonly("score", &simmynet::ForwardResult::score)
+        .def_readonly("soft_score", &simmynet::ForwardResult::softScore)
+        .def_readonly("trace", &simmynet::ForwardResult::trace, "List of (layer label, vector).");
 
     py::class_<api::RunResult>(m, "RunResult", "Outcome of Interpreter.run.")
         .def_readonly("passed", &api::RunResult::passed)
@@ -71,13 +71,18 @@ void bind_dsl(py::module_& root) {
         .def("evaluate", &api::JobHandle::evaluate, py::arg("trace") = false, py::arg("reference") = false,
              "Run the job. Folded graph by default (one k x k pass); reference=True runs the unfolded "
              "Kronecker-expanded oracle.")
-        .def("decide", &api::JobHandle::decide, "Decision on the folded graph; SymNetRuntimeError if the job has no hyperplane.")
+        .def("decide", &api::JobHandle::decide, "Decision on the folded graph; SimmyNetRuntimeError if the job has no hyperplane.")
         .def("__repr__", [](const api::JobHandle& j) { return "Job(" + j.label() + ")"; });
 
     py::class_<api::TaskHandle>(m, "Task", "A statement-level task: 'job', 'verify' (batch) or 'check' (lhs, rhs).")
         .def_readonly("kind", &api::TaskHandle::kind)
         .def_readonly("label", &api::TaskHandle::label)
         .def_readonly("jobs", &api::TaskHandle::jobs)
+        .def_readonly("exact", &api::TaskHandle::exactEqual,
+                      "check tasks: True = phasor angle sums proved equal symbolically (exact, mod 2*pi), False = "
+                      "not provable (numeric comparison decides), None = no symbolic proof applies.")
+        .def_readonly("lhs_angle", &api::TaskHandle::lhsAngle, "Summed phasor angle of the left side, e.g. '0.5*pi'.")
+        .def_readonly("rhs_angle", &api::TaskHandle::rhsAngle)
         .def("__repr__", [](const api::TaskHandle& t) { return "Task(" + t.kind + ": " + t.label + ")"; });
 
     py::class_<api::ClassifierInfo>(m, "Classifier", "A declared or synthesized classifier.")
@@ -99,7 +104,7 @@ void bind_dsl(py::module_& root) {
         .def_readonly("groups", &api::Program::groups);
 
     // ---- entry points -------------------------------------------------------------------
-    py::class_<api::Interpreter>(m, "Interpreter", "Lex, parse, compile, fold and run SymNet DSL programs.")
+    py::class_<api::Interpreter>(m, "Interpreter", "Lex, parse, compile, fold and run SimmyNet DSL programs.")
         .def(py::init<double>(), py::arg("sharpness") = 10.0, "sharpness: slope of the soft sigmoid score.")
         .def_property_readonly("sharpness", &api::Interpreter::sharpness)
         .def("run", &api::Interpreter::run, py::arg("source"), py::arg("transcript") = false,

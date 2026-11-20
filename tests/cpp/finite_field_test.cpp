@@ -1,19 +1,25 @@
 // tests/finite_field_test.cpp
 //
 // Validation harness.  The brute-force point counters below are TEST-ONLY
-// oracles (naive loops over F_p and F_{p^2}); the headers under test contain
-// no point-counting loop.  They give independent ground truth for:
+// oracles (naive loops over F_p and F_{p^2}).  The library itself ships exactly
+// one point counter: the exact O(p) Legendre-symbol counter behind
+// EllipticCurveNode::count_points() (primes p <= 10^6; NOT Schoof), which section
+// [5] cross-checks against these oracles.  They give independent ground truth for:
 //   * a_q = q + 1 - #E(F_q)  ->  lift  ->  Hasse-Weil and functional equation
 //   * #E(F_{p^2}) predicted by det(I - F^2)  vs  a direct count over F_{p^2}
 //   * the collapsed zeta function vs the defining relation  k Z_k = sum N_j Z_{k-j}
 //   * the corrected functional equation, and the failure of the "q T^2 Z(T)" form
+//   * the library Legendre counter and the Hasse-Weil validation of attached traces
 #include <cstdint>
 #include <cstdio>
+#include <limits>
+#include <optional>
+#include <utility>
 #include <vector>
 
-#include "symnet/finite_field/WeilProver.hpp"
+#include "simmynet/finite_field/WeilProver.hpp"
 
-using namespace symnet::ff;
+using namespace simmynet::ff;
 
 static int g_checks = 0, g_fail = 0;
 #define CHECK(cond)                                                          \
@@ -32,6 +38,34 @@ static long long brute_count_Fp(long long a, long long b, long long p) {
   long long n = 1;  // point at infinity
   for (long long x = 0; x < p; ++x) n += sq[((x * x % p) * x + a * x + b) % p];
   return n;
+}
+
+// Independent oracle #2: Euler's criterion chi(r) = r^((p-1)/2) mod p via square-and-multiply.
+// Structurally different from the library's chi table and from brute_count_Fp's square tally.
+static long long powmod_small(long long b, long long e, long long m) {
+  long long r = 1;
+  b %= m;
+  while (e > 0) {
+    if (e & 1) r = r * b % m;
+    b = b * b % m;
+    e >>= 1;
+  }
+  return r;
+}
+static long long euler_count_Fp(long long a, long long b, long long p) {
+  long long n = 1;
+  for (long long x = 0; x < p; ++x) {
+    const long long rhs = ((x * x % p) * x + a * x + b) % p;
+    if (rhs == 0) n += 1;
+    else n += (powmod_small(rhs, (p - 1) / 2, p) == 1) ? 2 : 0;
+  }
+  return n;
+}
+static bool is_prime_ll(long long n) {
+  if (n < 2) return false;
+  for (long long d = 2; d * d <= n; ++d)
+    if (n % d == 0) return false;
+  return true;
 }
 
 static long long brute_count_Fp2(long long a, long long b, long long p) {
@@ -203,6 +237,101 @@ int main() {
     CHECK(!LefschetzTracePass::count_points(F97, 40).has_value());
     CHECK(!LefschetzTracePass::count_points(F97, 0).has_value());
     CHECK(LefschetzTracePass::count_points(F97, 9).has_value());
+  }
+
+  // ---- 5. Exact O(p) Legendre counter + Hasse-Weil-validated traces ---------------
+  std::printf("[5] Legendre point counter and Hasse-Weil validation of traces\n");
+  {
+    // 3a. count_points / compute_trace agree with the brute-force oracle on EVERY curve
+    //     over every prime 5 <= p <= 101; singular curves are declined.
+    long long curves = 0, singular = 0;
+    for (long long p = 5; p <= 101; ++p) {
+      if (!is_prime_ll(p)) continue;
+      for (long long a = 0; a < p; ++a)
+        for (long long b = 0; b < p; ++b) {
+          EllipticCurveNode e(a, b, p);
+          if (!e.valid()) {
+            CHECK(!e.count_points().has_value());
+            CHECK(!e.compute_trace().has_value());
+            ++singular;
+            continue;
+          }
+          ++curves;
+          const long long N = brute_count_Fp(a, b, p);
+          const long long tr = p + 1 - N;
+          CHECK(e.count_points().value() == N);
+          CHECK(e.compute_trace().value() == tr);
+          CHECK(hasse_bound_holds(tr, p));
+          const EllipticCurveNode c = e.with_computed_trace();
+          CHECK(c.trace().has_value() && *c.trace() == tr);
+          CHECK(e.resolve(legendre_trace_resolver).trace() == c.trace());
+          const auto node = FrobeniusGenerator::lift(c);
+          CHECK(node.has_value());
+          CHECK(WeilProver::certify(*node).hasse.verdict == Verdict::PROVED);
+          CHECK(LefschetzTracePass::count_points(node->F, 1).value() == N);   // Lefschetz n = 1 round-trip
+        }
+    }
+    std::printf("    %lld curves counted, %lld singular declined\n", curves, singular);
+
+    // 3b. Known value: y^2 = x^3 + 2x + 3 over F_97 has 100 points, trace -2.
+    CHECK(EllipticCurveNode(2, 3, 97).count_points().value() == 100);
+    CHECK(EllipticCurveNode(2, 3, 97).compute_trace().value() == -2);
+    // a, b are reduced mod p, negatives included.
+    CHECK(EllipticCurveNode(-1, -1, 97).count_points() == EllipticCurveNode(96, 96, 97).count_points());
+
+    // 3c. Largest prime below 10^6 against the independent Euler-criterion oracle, plus closed forms.
+    const long long P = 999983;  // prime, P % 4 == 3, P % 3 == 2
+    CHECK(is_prime_ll(P) && P % 4 == 3 && P % 3 == 2 && P <= kMaxLegendreModulus);
+    for (auto ab : {std::pair<long long, long long>{1, 1}, {2, 3}, {-7, 10}, {123456, 654321}}) {
+      EllipticCurveNode e(ab.first, ab.second, P);
+      const long long N = euler_count_Fp(e.a(), e.b(), P);
+      CHECK(e.count_points().value() == N);
+      CHECK(e.compute_trace().value() == P + 1 - N);
+      CHECK(hasse_bound_holds(*e.compute_trace(), P));
+    }
+    CHECK(EllipticCurveNode(1, 0, P).count_points().value() == P + 1);   // y^2 = x^3 + x, p = 3 (mod 4): supersingular
+    CHECK(EllipticCurveNode(1, 0, P).compute_trace().value() == 0);
+    CHECK(EllipticCurveNode(0, 1, P).count_points().value() == P + 1);   // y^2 = x^3 + 1, p = 2 (mod 3): supersingular
+
+    // 3d. Domain: composite / too small / too large / singular are declined, never mis-counted.
+    CHECK(!EllipticCurveNode(1, 1, 91).count_points().has_value());            // 7 * 13
+    CHECK(!EllipticCurveNode(1, 1, 999999).count_points().has_value());        // composite, <= 10^6
+    CHECK(!EllipticCurveNode(1, 1, 4).count_points().has_value());
+    CHECK(!EllipticCurveNode(1, 1, 3).count_points().has_value());
+    CHECK(!EllipticCurveNode(1, 1, 2).count_points().has_value());
+    CHECK(!EllipticCurveNode(1, 1, 1000003).count_points().has_value());       // prime but > kMaxLegendreModulus
+    CHECK(!EllipticCurveNode(1, 1, (std::int64_t{1} << 62) - 57).count_points().has_value());
+    CHECK(!EllipticCurveNode(0, 0, 1009).count_points().has_value());          // singular
+    CHECK(!legendre_trace_resolver(EllipticCurveNode(1, 1, 1000003)).has_value());
+    CHECK(!EllipticCurveNode(1, 1, 1000003).with_computed_trace().trace().has_value());
+
+    // 3e. Hasse-Weil bound t^2 <= 4q: exact, exhaustive near the boundary for q = 97 (|t| <= 19).
+    for (long long tr = -100; tr <= 100; ++tr)
+      CHECK(hasse_bound_holds(tr, 97) == (tr * tr <= 4 * 97));
+    CHECK(hasse_bound_holds(4, 4) && !hasse_bound_holds(5, 4));   // t^2 == 4q accepted (comparison only)
+    CHECK(!hasse_bound_holds(0, 0) && !hasse_bound_holds(0, -5));
+    const std::int64_t bigq = (std::int64_t{1} << 62) - 57;
+    CHECK(hasse_bound_holds(2147483647LL * 2, bigq) && hasse_bound_holds(-2147483647LL * 2, bigq));
+    CHECK(!hasse_bound_holds(2147483647LL * 2 + 100, bigq));
+    CHECK(!hasse_bound_holds(std::numeric_limits<std::int64_t>::min(), bigq));   // |INT64_MIN| must not overflow
+    CHECK(!hasse_bound_holds(std::numeric_limits<std::int64_t>::max(), bigq));
+    CHECK(hasse_bound_holds(std::int64_t{1} << 32, std::int64_t{1} << 62));      // t^2 == 4q at q = 2^62: 4q = 2^64
+
+    // 3f. with_trace / try_with_trace / resolve reject impossible traces.
+    const EllipticCurveNode E97(2, 3, 97);
+    CHECK(E97.try_with_trace(-2).has_value() && *E97.try_with_trace(-2)->trace() == -2);
+    CHECK(E97.try_with_trace(19).has_value() && E97.try_with_trace(-19).has_value());
+    CHECK(!E97.try_with_trace(20).has_value() && !E97.try_with_trace(-20).has_value());
+    CHECK(!E97.try_with_trace(std::numeric_limits<std::int64_t>::min()).has_value());
+    CHECK(E97.with_trace(-2).trace() == std::optional<std::int64_t>(-2));
+    CHECK(!E97.with_trace(20).trace().has_value());                              // rejected -> unresolved
+    CHECK(!FrobeniusGenerator::lift(E97.with_trace(20)).has_value());            // so it can never be lifted
+    CHECK(!FrobeniusGenerator::lift(E97.with_trace(-2).with_trace(1000)).has_value());   // a bad retry clears the old trace
+    CHECK(E97.resolve([](const EllipticCurveNode&) { return std::optional<std::int64_t>(-2); }).trace().has_value());
+    CHECK(!E97.resolve([](const EllipticCurveNode&) { return std::optional<std::int64_t>(1000); }).trace().has_value());
+    CHECK(!E97.resolve([](const EllipticCurveNode&) { return std::optional<std::int64_t>{}; }).trace().has_value());
+    CHECK(!E97.resolve(TraceResolver{}).trace().has_value());                    // empty std::function
+    CHECK(legendre_trace_resolver(E97) == std::optional<std::int64_t>(-2));
   }
 
   std::printf("\n%d checks, %d failed\n", g_checks, g_fail);
