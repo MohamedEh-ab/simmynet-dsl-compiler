@@ -133,11 +133,14 @@ The bridge is opt-in (`-DSIMMYNET_BUILD_LEAN_FFI=ON`, default `OFF`) and leaves 
 Timings depend on the machine; reproduce them with `build/tests/unit_tests`.
 
 ## Documentation
-
-- [Documentation home](docs/index.md)
-- [Architecture deep-dive](docs/architecture.md): how the compiler works, bottom to top
-- [DSL reference](docs/dsl-reference.md) · [Python API](docs/python-api.md) · [C++ API](docs/cpp-api.md)
-- [Lean 4 bridge](docs/lean4-bridge.md): the formal-to-native pipeline, its trust model, and [`bridges/lean4/README.md`](bridges/lean4/README.md) for setup and verification commands
+> [!TIP]
+> **Full Technical Documentation & API Reference:**
+>
+> * **[Architecture Deep-Dive](https://mohamedeh-ab.github.io/simmynet-dsl-compiler/architecture)** — exact $\mathrm{span}\{1,\pi\}$ folding, Novikoff lift synthesis, nanosecond kernels, and `simmynet::ff`
+> * **[DSL Reference](https://mohamedeh-ab.github.io/simmynet-dsl-compiler/dsl-reference)** — full grammar, statements, generator kinds, and CLI flags
+> * **[Python API](https://mohamedeh-ab.github.io/simmynet-dsl-compiler/python-api)** — `Generator`, `Word`, `DSLGroup`, `simmynet.dsl`, and `simmynet.finite_field`
+> * **[C++17 API](https://mohamedeh-ab.github.io/simmynet-dsl-compiler/cpp-api)** — header-only `AlgebraicTuple`, `MatrixEngine`, and Weil/Lefschetz passes
+> * **[Lean 4 (`mathlib`) Bridge](https://mohamedeh-ab.github.io/simmynet-dsl-compiler/lean4-bridge)** — kernel-checked rewrite rules and oracle certificate verification
 
 ## Limitations
 
