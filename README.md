@@ -1,7 +1,7 @@
 # SimmyNet (`simmynet`) Zero-Drift Algebraic Compiler
 *Exact group theory, `span{1, π}` phasor folding, and elliptic-curve finite-field passes compiled to nanosecond native kernels.*
 
-[![Documentation](https://img.shields.io/badge/docs-simmynet--compiler-2ea44f?style=for-the-badge&logo=readthedocs&logoColor=white)](https://mohamedeh-ab.github.io/simmynet-dsl-compiler/)
+[![Docs](https://img.shields.io/website?url=https%3A%2F%2Fmohamedeh-ab.github.io%2Fsimmynet-dsl-compiler%2F&up_message=online&up_color=2ea44f&label=docs&logo=readthedocs&logoColor=white)](https://mohamedeh-ab.github.io/simmynet-dsl-compiler/)
 [![PyPI](https://img.shields.io/pypi/v/simmynet?logo=pypi&logoColor=white&label=PyPI&color=3776AB)](https://pypi.org/project/simmynet/)
 [![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://en.cppreference.com/w/cpp/17)
 [![CMake 3.18+](https://img.shields.io/badge/CMake-3.18%2B-brightgreen.svg)](https://cmake.org/)
