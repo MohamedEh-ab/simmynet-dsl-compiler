@@ -2,8 +2,8 @@
 # Enable with: repository Settings -> Pages -> Source: "Deploy from a branch", branch main, folder /docs.
 title: SimmyNet
 description: Compile symbolic group-theoretic classifiers and exact finite-field checks into constant-time kernels (simmynet v2.2.0)
-baseurl: ""                      # set to "/<repository-name>" for a project site if your theme needs it
-url: ""                          # e.g. https://<user>.github.io
+baseurl: "/simmynet-dsl-compiler"                      # set to "/<repository-name>" for a project site if your theme needs it
+url: "https://mohamedeh-ab.github.io"                          # e.g. https://<user>.github.io
 
 remote_theme: just-the-docs/just-the-docs
 plugins:
