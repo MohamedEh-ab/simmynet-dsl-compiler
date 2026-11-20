@@ -144,7 +144,7 @@ Timings depend on the machine; reproduce them with `build/tests/unit_tests`.
 
 ## Citation
 
-If you use SimmyNet in academic work, please cite it using [`CITATION.cff`](CITATION.cff). The Zenodo DOI above predates version 2.2.0 and will be replaced once a v2.2.0 record is minted.
+If you use SimmyNet in academic work, please cite it using [`CITATION.cff`](CITATION.cff).
 
 ## License
 
