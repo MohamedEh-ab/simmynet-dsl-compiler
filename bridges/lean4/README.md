@@ -198,7 +198,7 @@ theorem example97_recount : example97.recountOk = true := by decide +kernel  -- 
 #eval (checkTrace? 2 3 97 0).isSome         -- false: a forged trace is rejected
 ```
 
-`TraceCertificate.recountOk` compares the oracle's claim against `pointCountSpec`, a deliberately naive $O(p^2)$ *definition* of $\#E(\mathbb{F}_p)$, so it is practical only for small $p$. For large $p$ (the oracle handles $p \le 10^6$ in about 10 ms) only the cheap necessary condition `hasseOk` ($t^2 \le 4p$) is available; the demo says so explicitly.
+`TraceCertificate.recountOk` compares the oracle's claim against `pointCountSpec`, a deliberately naive $O(p^2)$ *definition* of $\\#E(\mathbb{F}_p)$, so it is practical only for small $p$. For large $p$ (the oracle handles $p \le 10^6$ in about 10 ms) only the cheap necessary condition `hasseOk` ($t^2 \le 4p$) is available; the demo says so explicitly.
 
 ## Tests
 
