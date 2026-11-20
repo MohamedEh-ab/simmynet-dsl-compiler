@@ -26,7 +26,7 @@ Build: `g++ -std=c++17 -I include main.cpp`, or link the CMake interface target 
 
 ### `simmynet::ring::AlgebraicTuple<T = double>` (`algebraic_ring.hpp`)
 
-The exact element $c_{base} + c_\pi\,\pi$ of the $\mathbb{Z}$-module $\mathrm{span}\{1, \pi\}$ (`T` must be a floating-point type). All members are `constexpr`.
+The exact element $c\_{\text{base}} + c\_\pi\,\pi$ of the $\mathbb{Z}$-module $\mathrm{span}\\{1, \pi\\}$ (`T` must be a floating-point type). All members are `constexpr`.
 
 | Member | Description |
 |---|---|
@@ -102,7 +102,7 @@ simmynet::Report rep = interp.run(source);        // rep.failed == 0 && rep.xFai
 | `template <int N> struct alignas(32) Mat` | Fixed-size row-major `double` matrix: `zero()`, `identity()`, `fromData(const double*)`, `operator()(i, j)`, `operator*` (unrolled), `apply(const std::array<double, N>&)`, `maxAbsDiff(other)`. |
 | `Matrix2x2`, `Matrix3x3`, `Matrix4x4` | `Mat<2>`, `Mat<3>`, `Mat<4>`. |
 | `dot(a, b, n)` | Four-accumulator dot product (vectorisable without `-ffast-math`). |
-| `gemm(A, B, C, k)`, `gemvSquare(A, x, y, k)`, `gemv(A, x, y, rows, cols)` | Dispatch to fully unrolled kernels for $k \in \{1, 2, 3, 4\}$, a generic loop otherwise. |
+| `gemm(A, B, C, k)`, `gemvSquare(A, x, y, k)`, `gemv(A, x, y, rows, cols)` | Dispatch to fully unrolled kernels for $k \in \\{1, 2, 3, 4\\}$, a generic loop otherwise. |
 | `DMat` | Dynamic row-major matrix; `identity(n)`, `operator()`, `data()`, `row(i)`, `isSquare()`. |
 | `matmul`, `kron`, `inverse` (throws `SingularMatrix`), `cleanMatrix`, `matrixKey`, `maxAbsDiff` | Dense helpers. |
 | `std::size_t& gemmCounter()` | Matrix-multiplication passes executed so far (every `gemm`, including `ff::mul`). |
@@ -112,7 +112,7 @@ simmynet::Report rep = interp.run(source);        // rep.failed == 0 && rep.xFai
 | Symbol | Description |
 |---|---|
 | `constexpr int kMaxWordDim = 4` | Largest $k$. |
-| `foldWord(int k, const std::vector<double>& factors, double* out)` | $F_1 \cdots F_L$ into `out` (rightmost acts first); `k` must be 2, 3 or 4, else `std::invalid_argument`. |
+| `foldWord(int k, const std::vector<double>& factors, double* out)` | $F\_1 \cdots F\_L$ into `out` (rightmost acts first); `k` must be 2, 3 or 4, else `std::invalid_argument`. |
 | `evalWordCompiled(k, factors, weight, bias)` | Fold, then $\mathrm{Step}(w \cdot \mathrm{vec}(W) + b)$. |
 | `class CompiledWord` | `CompiledWord(int k, const std::vector<double>& factors)`; `dim()`, `length()`, `matrix()`, `decide(weight, bias)` (0 matrix passes). |
 
@@ -140,22 +140,22 @@ simmynet::Report rep = interp.run(source);        // rep.failed == 0 && rep.xFai
 |---|---|
 | `inline constexpr std::int64_t kMaxLegendreModulus = 1000000` | Largest prime the Legendre counter accepts. |
 | `bool hasse_bound_holds(std::int64_t t, std::int64_t q) noexcept` | Exact $t^2 \le 4q$ in 128-bit arithmetic (safe for `INT64_MIN` and $q = 2^{62}$); `false` for $q \le 0$. |
-| `std::optional<std::int64_t> legendre_count_points(a, b, p)` | $\#E(\mathbb{F}_p)$ by $O(p)$ Legendre-symbol summation. `nullopt` unless $p$ is a prime in $[5, 10^6]$ and the curve is nonsingular. Every intermediate is $< 2^{41}$. **Not Schoof's algorithm.** |
+| `std::optional<std::int64_t> legendre_count_points(a, b, p)` | $\\#E(\mathbb{F}\_p)$ by $O(p)$ Legendre-symbol summation. `nullopt` unless $p$ is a prime in $[5, 10^6]$ and the curve is nonsingular. Every intermediate is $ \lt 2^{41}$. **Not Schoof's algorithm.** |
 | `using TraceResolver = std::function<std::optional<std::int64_t>(const EllipticCurveNode&)>` | Plug any trace source in (a table, an external Schoof/SEA, a certificate). |
 | `legendre_trace_resolver(const EllipticCurveNode&)` | A ready-made `TraceResolver` backed by `compute_trace()`. |
 | `schoof_trace_stub(const EllipticCurveNode&)` | Placeholder that **always** returns `nullopt`; Schoof/SEA is not implemented. |
 
-**`EllipticCurveNode(a, b, q)`**: AST node for $y^2 = x^3 + ax + b$ over $\mathbb{F}_q$ ($a$, $b$ reduced mod $q$).
+**`EllipticCurveNode(a, b, q)`**: AST node for $y^2 = x^3 + ax + b$ over $\mathbb{F}\_q$ ($a$, $b$ reduced mod $q$).
 
 | Member | Description |
 |---|---|
 | `a()`, `b()`, `q()`, `trace()` | Accessors; `trace()` is `std::optional<int64_t>` (empty = unresolved). |
-| `valid()` | $3 < q \le 2^{62}$, $q$ odd, $q \bmod 3 \ne 0$, $4a^3 + 27b^2 \not\equiv 0$. Primality of $q$ is the caller's guarantee here. |
+| `valid()` | $3 \lt q \le 2^{62}$, $q$ odd, $q \bmod 3 \ne 0$, $4a^3 + 27b^2 \not\equiv 0$. Primality of $q$ is the caller's guarantee here. |
 | `try_with_trace(t)` | `std::optional<EllipticCurveNode>`: the curve with trace `t` attached, or **`nullopt`** if `t` violates the Hasse–Weil bound $t^2 \le 4q$. |
 | `with_trace(t)` | Fluent, `noexcept`: always returns a curve. If `t` violates the bound the trace is left **unresolved** (any previously attached trace is cleared), so `FrobeniusGenerator::lift()` then yields `nullopt`. Use `try_with_trace` when you need to detect the rejection. |
 | `resolve(const TraceResolver&)` | Same validation applied to the resolver's result; an empty resolver, `nullopt` or an impossible value leaves the trace unresolved. |
-| `count_points()` | `optional<int64_t>`: $\#E(\mathbb{F}_q)$ by the Legendre sum; **only for prime $5 \le q \le 10^6$** (`nullopt` otherwise, or for a singular curve). |
-| `compute_trace()` | `optional<int64_t>`: $a_q = q + 1 - \#E(\mathbb{F}_q)$; same domain. |
+| `count_points()` | `optional<int64_t>`: $\\#E(\mathbb{F}\_q)$ by the Legendre sum; **only for prime $5 \le q \le 10^6$** (`nullopt` otherwise, or for a singular curve). |
+| `compute_trace()` | `optional<int64_t>`: $a\_q = q + 1 - \\#E(\mathbb{F}\_q)$; same domain. |
 | `with_computed_trace()` | The curve with `compute_trace()` attached; unresolved outside the domain. |
 
 The Hasse–Weil check is necessary, not sufficient: it rejects impossible traces but cannot prove a supplied trace belongs to this curve.
@@ -176,7 +176,7 @@ auto node = FrobeniusGenerator::lift(e.with_computed_trace());   // F = [[0,-97]
 |---|---|
 | `FrobeniusNode` | `{ Mat2 F; std::int64_t q; }` |
 | `FiniteFieldNode` | `std::variant<EllipticCurveNode, FrobeniusNode>` |
-| `FrobeniusGenerator::lift(curve)` | → `optional<FrobeniusNode>`, $F = \begin{pmatrix}0 & -q\\ 1 & a_q\end{pmatrix}$; `nullopt` if invalid or the trace is unresolved. Also accepts a `FiniteFieldNode`. |
+| `FrobeniusGenerator::lift(curve)` | → `optional<FrobeniusNode>`, $F = \begin{pmatrix}0 & -q\\\\ 1 & a\_q\end{pmatrix}$; `nullopt` if invalid or the trace is unresolved. Also accepts a `FiniteFieldNode`. |
 | `FrobeniusGenerator::lift_to_engine(curve)` | The same lift as `simmynet::Matrix2x2`; `nullopt` if an entry exceeds $2^{53}$. |
 
 ### `finite_field/LefschetzTracePass.hpp`: `LefschetzTracePass` (static members)
@@ -188,7 +188,7 @@ auto node = FrobeniusGenerator::lift(e.with_computed_trace());   // F = [[0,-97]
 | `characteristic_polynomial(F)` | `Checked<Poly2>` | $P(T) = 1 - tT + \det(F)\,T^2$. |
 | `power(F, std::uint64_t n)` | `Checked<Mat2>` | $F^n$, binary exponentiation (≤ 64 steps), branch-free. |
 | `trace_of_power(F, n)` | `optional<int64>` | $\mathrm{Tr}(F^n)$; `nullopt` on overflow. |
-| `count_points(F, n)` | `optional<int64>` | $\#E(\mathbb{F}_{q^n}) = \det(I - F^n)$; `nullopt` for $n = 0$ or if not certifiable in `int64`. |
+| `count_points(F, n)` | `optional<int64>` | $\\#E(\mathbb{F}\_{q^n}) = \det(I - F^n)$; `nullopt` for $n = 0$ or if not certifiable in `int64`. |
 
 ### `finite_field/ZetaFunctionPass.hpp`
 

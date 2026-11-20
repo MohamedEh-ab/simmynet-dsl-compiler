@@ -29,7 +29,7 @@ The concrete type tag is **resolved from the statement**:
 | `finite_field` | `ZMod p` (or `ℕ`/`ℤ` with `%`) | $x^p = x$ in $\mathbb{Z}/p$ (Frobenius), $p$ prime |
 | `dihedral` | `DihedralGroup n` | $s\,r\,s = r^{-1}$ |
 | `so2_phasor` | `ℝ` with `cos` / `sin` | $\cos(a+b) = \cos a \cos b - \sin a \sin b$ and the sine formula, i.e. $R(a)R(b) = R(a+b)$ |
-| `algebraic_tuple` | `ℝ` inside $\mathrm{span}\{1,\pi\}$ | $\tfrac{\pi}{4} + \tfrac{\pi}{4} = \tfrac{\pi}{2}$ |
+| `algebraic_tuple` | `ℝ` inside $\mathrm{span}\\{1,\pi\\}$ | $\tfrac{\pi}{4} + \tfrac{\pi}{4} = \tfrac{\pi}{2}$ |
 
 The `algebraic_tuple` tag is the module that `ring::AlgebraicTuple<T>` represents, so such a rule is checked in the exact arithmetic of the DSL frontend. The `so2_phasor` rules are what justify folding the product of two phasor generators into one generator whose angle is the exact sum.
 
@@ -47,7 +47,7 @@ Generation is strictly deterministic (no timestamps, rules sorted by Lean name, 
 
 ## Direction 2: SimmyNet as a native oracle for Lean
 
-`bridges/lean4/simmy_lean_ffi.cpp` builds the shared library `simmynet_lean` (CMake option `SIMMYNET_BUILD_LEAN_FFI`, default `OFF`). It exposes the exact $O(p)$ Legendre point counter, the Hasse–Weil bound check, Frobenius traces $\mathrm{Tr}(F^n)$, $\#E(\mathbb{F}_{p^n}) = \det(I - F^n)$ and the Weil certificate as `extern "C"` functions over `uint64_t`, `int64_t` and `double` only (no `lean.h`). `SimmyFFI.lean` declares them with `@[extern "simmy_..."]`.
+`bridges/lean4/simmy_lean_ffi.cpp` builds the shared library `simmynet_lean` (CMake option `SIMMYNET_BUILD_LEAN_FFI`, default `OFF`). It exposes the exact $O(p)$ Legendre point counter, the Hasse–Weil bound check, Frobenius traces $\mathrm{Tr}(F^n)$, $\\#E(\mathbb{F}\_{p^n}) = \det(I - F^n)$ and the Weil certificate as `extern "C"` functions over `uint64_t`, `int64_t` and `double` only (no `lean.h`). `SimmyFFI.lean` declares them with `@[extern "simmy_..."]`.
 
 | Level | Trusted by | Examples |
 |---|---|---|
@@ -55,7 +55,7 @@ Generation is strictly deterministic (no timestamps, rules sorted by Lean name, 
 | Run-time certificate check | Compiled Lean code (not the C++ oracle) | `checkTrace?`, `TraceCertificate.recountOk` |
 | Untrusted oracle | Nobody | `SimmyFFI.Raw.*`, `SimmyFFI.Oracle.*`, `#eval` |
 
-A returned trace $t$ for $y^2 = x^3 + ax + b$ over $\mathbb{F}_p$ is a *certificate candidate*. Lean checks the Hasse–Weil bound $t^2 \le 4p$ cheaply for any $p$, and for small $p$ recounts the points from a naive $O(p^2)$ definition of $\#E(\mathbb{F}_p) = p + 1 - t$. A wrong oracle can only make the check fail; it can never make a false statement pass.
+A returned trace $t$ for $y^2 = x^3 + ax + b$ over $\mathbb{F}\_p$ is a *certificate candidate*. Lean checks the Hasse–Weil bound $t^2 \le 4p$ cheaply for any $p$, and for small $p$ recounts the points from a naive $O(p^2)$ definition of $\\#E(\mathbb{F}\_p) = p + 1 - t$. A wrong oracle can only make the check fail; it can never make a false statement pass.
 
 ## Limits
 
